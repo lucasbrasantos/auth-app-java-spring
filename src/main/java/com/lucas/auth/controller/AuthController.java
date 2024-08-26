@@ -1,8 +1,10 @@
 package com.lucas.auth.controller;
 
 import com.lucas.auth.domain.user.AuthDTO;
+import com.lucas.auth.domain.user.LoginResponseDTO;
 import com.lucas.auth.domain.user.RegisterDTO;
 import com.lucas.auth.domain.user.User;
+import com.lucas.auth.infra.security.TokenService;
 import com.lucas.auth.repository.UserRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,11 +27,16 @@ public class AuthController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private TokenService tokenService;
+
     @PostMapping("/login")
     public ResponseEntity login(@RequestBody @Valid AuthDTO data) {
         var usernamePassword = new UsernamePasswordAuthenticationToken(data.login(), data.password());
         var auth = this.authenticationManager.authenticate(usernamePassword);
-        return ResponseEntity.ok().build();
+        var token = tokenService.generateToken((User) auth.getPrincipal());
+
+        return ResponseEntity.ok(new LoginResponseDTO(token));
     }
 
     @PostMapping("/register")
@@ -38,6 +45,7 @@ public class AuthController {
 
         String encryptedPassword = new BCryptPasswordEncoder().encode(data.password());
         User newUser = new User(data.login(), encryptedPassword, data.role());
+        this.userRepository.save(newUser); // create new user in the database
 
         return ResponseEntity.ok().build();
     }
